@@ -46,7 +46,16 @@ async def _generate_patch(finding: ReviewFinding) -> FixPatch | None:
 
 
 async def suggest_fixes_node(state: ReviewState) -> dict:
-    """Generate fix patches for findings that have suggested_fix."""
+    """Generate fix patches for findings that have suggested_fix.
+
+    Fix generation costs one LLM call per finding and is only useful when the
+    run can actually apply fixes (auto-fix) or is about to show them at the
+    human gate. Read-only review runs (including the evaluation harness) skip
+    it entirely.
+    """
+    if not state.get("auto_fix_enabled"):
+        return {"generated_fixes": [], "phase": "evaluate"}
+
     fixable = [
         s
         for s in state["suggestions"]

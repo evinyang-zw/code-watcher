@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from eval.guards import apply_guard
 from eval.metrics import (
     match_instance,
     summarize,
@@ -101,6 +102,20 @@ def test_defect_recall_uses_category_subset():
     assert summary.defect_recall == pytest.approx(1.0)
 
 
+def test_suggestion_subset_recall():
+    bug = make_instance(
+        [
+            GoldComment(path="a.py", line=5, body="```suggestion\nx = 1\n```", has_suggestion=True),
+            GoldComment(path="a.py", line=40, body="please reorder", has_suggestion=False),
+        ]
+    )
+    result = match_instance(bug, [finding("a.py", 5)])
+    summary = summarize([result])
+    assert summary.suggestion_total == 1
+    assert summary.suggestion_matched == 1
+    assert summary.suggestion_recall == pytest.approx(1.0)
+
+
 def test_clean_pr_with_findings_counts_as_false_positive():
     clean_with_finding = make_instance([], kind="clean")
     result = match_instance(clean_with_finding, [finding("a.py", 1)])
@@ -114,6 +129,27 @@ def test_wilson_interval():
     assert 0.71 < high < 0.73
     assert wilson_interval(0, 0) == (0.0, 1.0)
     assert wilson_interval(0, 10)[0] == 0.0
+
+
+def test_apply_guard_filters_dedupes_and_caps():
+    findings = [
+        Finding(file="a.py", line=1, severity="nit", dimension="style", message="n"),
+        Finding(file="a.py", line=2, severity="warning", dimension="correctness", message="w"),
+        Finding(file="a.py", line=2, severity="warning", dimension="correctness", message="dup"),
+        Finding(file="b.py", line=9, severity="critical", dimension="security", message="c"),
+    ]
+    guarded = apply_guard(findings, min_severity="warning", max_findings=5)
+    assert [f.severity for f in guarded] == ["warning", "critical"]
+
+    capped = apply_guard(
+        [
+            Finding(file="a.py", line=i, severity="warning", dimension="correctness", message="x")
+            for i in range(10)
+        ],
+        min_severity="warning",
+        max_findings=3,
+    )
+    assert len(capped) == 3
 
 
 def test_comment_filters():

@@ -167,7 +167,10 @@ def run_id_from_env(prefix: str = "run") -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()
+    load_dotenv(".env")
+    # Reproducibility: disable provider-side "thinking" unless the caller
+    # explicitly opts in (thinking mode ignores temperature and inflates cost).
+    os.environ.setdefault("LLM_THINKING", "disabled")
     parser = argparse.ArgumentParser(description="Evaluate Code Watcher on a gold set")
     parser.add_argument("--dataset", default="eval/data/gold_review.jsonl")
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N")

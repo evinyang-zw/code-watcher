@@ -96,7 +96,19 @@ async def test_suggest_fixes_generates_patch():
     mock_provider.chat = AsyncMock(return_value="--- a/a.py\n+++ b/a.py\n@@ -1 +1 @@\n-old\n+new")
 
     with patch("src.graph.nodes.suggest_fixes.create_llm_provider", return_value=mock_provider):
-        state = create_review_state(suggestions=[finding])
+        state = create_review_state(suggestions=[finding], auto_fix_enabled=True)
         result = await suggest_fixes_node(state)
         assert len(result["generated_fixes"]) == 1
         assert result["generated_fixes"][0].finding == finding
+
+
+@pytest.mark.asyncio
+async def test_suggest_fixes_skipped_for_read_only_runs():
+    """Read-only review runs (including the eval harness) must not pay for fixes."""
+    finding = _make_finding()
+    finding.suggested_fix = "Use parameterized query"
+    finding.severity = "warning"
+
+    state = create_review_state(suggestions=[finding], auto_fix_enabled=False)
+    result = await suggest_fixes_node(state)
+    assert result["generated_fixes"] == []

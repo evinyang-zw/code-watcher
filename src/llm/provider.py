@@ -46,9 +46,16 @@ class OpenAIProvider(LLMProvider):
             model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-4o"
         )
         self.base_url = base_url or os.environ.get("LLM_BASE_URL") or None
+        thinking = os.environ.get("LLM_THINKING", "").strip().lower()
+        self.extra_body = {"thinking": {"type": "disabled"}} if thinking == "disabled" else None
+        # Without an explicit timeout a stalled provider request hangs the whole
+        # review run (each segment calls the model); fail fast and let the node
+        # degrade instead.
         self.client = AsyncOpenAI(
             api_key=api_key or os.environ.get("OPENAI_API_KEY"),
             base_url=self.base_url,
+            timeout=float(os.environ.get("LLM_TIMEOUT_S", "90")),
+            max_retries=int(os.environ.get("LLM_MAX_RETRIES", "1")),
         )
 
     async def chat(self, messages: list[BaseMessage]) -> str:
@@ -61,11 +68,14 @@ class OpenAIProvider(LLMProvider):
             elif isinstance(msg, AIMessage):
                 formatted.append({"role": "assistant", "content": msg.content})
 
-        resp = await self.client.chat.completions.create(
-            model=self.model,
-            messages=cast(Any, formatted),
-            temperature=0.1,
-        )
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": cast(Any, formatted),
+            "temperature": 0.1,
+        }
+        if self.extra_body is not None:
+            kwargs["extra_body"] = self.extra_body
+        resp = await self.client.chat.completions.create(**kwargs)
         return resp.choices[0].message.content or ""
 
 
@@ -76,7 +86,11 @@ class AnthropicProvider(LLMProvider):
         from anthropic import AsyncAnthropic
 
         self.model = model or os.environ.get("LLM_MODEL", "claude-sonnet-4-20250514")
-        self.client = AsyncAnthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        self.client = AsyncAnthropic(
+            api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"),
+            timeout=float(os.environ.get("LLM_TIMEOUT_S", "90")),
+            max_retries=int(os.environ.get("LLM_MAX_RETRIES", "1")),
+        )
 
     async def chat(self, messages: list[BaseMessage]) -> str:
         system = ""

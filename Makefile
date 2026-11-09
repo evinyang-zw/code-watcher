@@ -1,5 +1,7 @@
 .PHONY: help install test cov lint type check demo demo-fix format \
-	eval-collect eval eval-smoke eval-report
+	eval-collect eval eval-smoke eval-guard eval-report
+
+RUN_ID ?= $(shell ls -t eval/results/*-summary.json 2>/dev/null | head -1 | xargs -n1 basename 2>/dev/null | sed 's/-summary.json//')
 
 help:
 	@echo "make install  安装依赖（uv sync --extra dev）"
@@ -55,5 +57,8 @@ eval-collect:
 eval:
 	uv run python -m eval.run --dataset eval/data/gold_review.jsonl
 
+eval-guard:
+	uv run python -m eval.rescore --run-id $(RUN_ID)
+
 eval-report:
-	uv run python -m eval.report --out eval/report.md
+	uv run python -m eval.report --run-id $(RUN_ID) --out eval/report.md

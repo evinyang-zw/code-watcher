@@ -92,6 +92,7 @@ class GoldComment:
     body: str
     category: Category = "other"
     author: str = ""
+    has_suggestion: bool = False
 
     @classmethod
     def from_github(cls, payload: dict[str, Any]) -> GoldComment | None:
@@ -114,12 +115,14 @@ class GoldComment:
             return None
         if str(user.get("login", "")).endswith("[bot]"):
             return None
+        cleaned = body.strip()
         return cls(
             path=str(path),
             line=int(line),
-            body=body.strip(),
-            category=infer_category(body),
+            body=cleaned,
+            category=infer_category(cleaned),
             author=str(user.get("login", "")),
+            has_suggestion="```suggestion" in cleaned,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -133,6 +136,9 @@ class GoldComment:
             body=payload["body"],
             category=payload.get("category", "other"),
             author=payload.get("author", ""),
+            has_suggestion=bool(
+                payload.get("has_suggestion", "```suggestion" in payload.get("body", ""))
+            ),
         )
 
 

@@ -30,7 +30,9 @@ def _latest_summary(results_dir: Path) -> Path:
     return candidates[-1]
 
 
-def render(summary_path: Path, results_path: Path | None) -> str:
+def render(
+    summary_path: Path, results_path: Path | None, guarded_payload: dict[str, Any] | None = None
+) -> str:
     payload = json.loads(summary_path.read_text(encoding="utf-8"))
     summary: dict[str, Any] = payload["summary"]
 
@@ -61,6 +63,10 @@ def render(summary_path: Path, results_path: Path | None) -> str:
         f"| {_pct(summary.get('defect_recall', 0.0))} "
         f"| {_ci(summary.get('defect_ci', [0, 1]))} "
         f"| {summary.get('defect_matched', 0)}/{summary.get('defect_total', 0)} |",
+        f"| Recall on comments with a concrete code suggestion "
+        f"| {_pct(summary.get('suggestion_recall', 0.0))} "
+        f"| {_ci(summary.get('suggestion_ci', [0, 1]))} "
+        f"| {summary.get('suggestion_matched', 0)}/{summary.get('suggestion_total', 0)} |",
         f"| F1 | {summary['f1']:.3f} | — | — |",
         f"| False-positive rate (clean PRs) | {_pct(summary['false_positive_rate'])} "
         f"| {_ci(summary['fpr_ci'])} | {summary['clean_with_findings']}/{summary['clean_instances']} |",
@@ -79,6 +85,26 @@ def render(summary_path: Path, results_path: Path | None) -> str:
         lines.append(
             f"| {category} | {_pct(values['recall'])} | {values['matched']}/{values['total']} |"
         )
+
+    if guarded_payload:
+        guarded = guarded_payload["summary"]
+        guard = guarded_payload.get("guard", {})
+        lines += [
+            "",
+            "## Noise reduction (raw model output vs publishing guard)",
+            "",
+            f"Guard: drop below `{guard.get('min_severity', 'warning')}`, dedupe, "
+            f"cap {guard.get('max_findings', 5)} comments/PR.",
+            "",
+            "| Metric | Raw | Guarded |",
+            "|---|---|---|",
+            f"| Findings per bug-fix PR | {summary['findings_per_bug_pr']:.2f} "
+            f"| {guarded['findings_per_bug_pr']:.2f} |",
+            f"| Precision | {_pct(summary['precision'])} | {_pct(guarded['precision'])} |",
+            f"| Recall | {_pct(summary['recall'])} | {_pct(guarded['recall'])} |",
+            f"| False-positive rate (clean PRs) | {_pct(summary['false_positive_rate'])} "
+            f"| {_pct(guarded['false_positive_rate'])} |",
+        ]
 
     lines += [
         "",
@@ -169,15 +195,28 @@ def main(argv: list[str] | None = None) -> int:
     if args.run_id:
         summary_path = results_dir / f"{args.run_id}-summary.json"
         results_path: Path | None = results_dir / f"{args.run_id}.jsonl"
+        run_id = args.run_id
     else:
-        summary_path = _latest_summary(results_dir)
+        candidates = sorted(
+            path
+            for path in results_dir.glob("*-summary.json")
+            if not path.name.endswith("-guarded-summary.json")
+        )
+        if not candidates:
+            raise SystemExit(f"no summary files in {results_dir}; run eval.run first")
+        summary_path = candidates[-1]
         run_id = summary_path.name.removesuffix("-summary.json")
         results_path = results_dir / f"{run_id}.jsonl"
+
+    guarded_path = results_dir / f"{run_id}-guarded-summary.json"
+    guarded_payload = (
+        json.loads(guarded_path.read_text(encoding="utf-8")) if guarded_path.exists() else None
+    )
 
     if not summary_path.exists():
         raise SystemExit(f"summary not found: {summary_path}")
 
-    markdown = render(summary_path, results_path)
+    markdown = render(summary_path, results_path, guarded_payload)
     Path(args.out).write_text(markdown, encoding="utf-8")
     print(f"report written to {args.out}")
     return 0

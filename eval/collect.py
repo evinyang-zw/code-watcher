@@ -235,7 +235,7 @@ def load(path: Path) -> list[Instance]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()
+    load_dotenv(".env")
     parser = argparse.ArgumentParser(description="Collect a code-review gold set")
     parser.add_argument(
         "--repos",

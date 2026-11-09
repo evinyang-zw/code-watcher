@@ -35,6 +35,8 @@ class InstanceResult:
     matched_findings: int
     gold_by_category: dict[str, int] = field(default_factory=dict)
     matched_by_category: dict[str, int] = field(default_factory=dict)
+    suggestion_total: int = 0
+    suggestion_matched: int = 0
     unmatched_gold: list[dict[str, object]] = field(default_factory=list)
     unmatched_findings: list[dict[str, object]] = field(default_factory=list)
     error: str | None = None
@@ -53,6 +55,8 @@ class InstanceResult:
             "matched_findings": self.matched_findings,
             "gold_by_category": self.gold_by_category,
             "matched_by_category": self.matched_by_category,
+            "suggestion_total": self.suggestion_total,
+            "suggestion_matched": self.suggestion_matched,
             "unmatched_gold": self.unmatched_gold,
             "unmatched_findings": self.unmatched_findings,
             "error": self.error,
@@ -87,6 +91,13 @@ def match_instance(
         if gold_index in used_gold:
             matched_by_category[gold.category] = matched_by_category.get(gold.category, 0) + 1
 
+    suggestion_total = sum(1 for gold in instance.gold if gold.has_suggestion)
+    suggestion_matched = sum(
+        1
+        for gold_index, gold in enumerate(instance.gold)
+        if gold_index in used_gold and gold.has_suggestion
+    )
+
     unmatched_gold = [
         {
             "path": gold.path,
@@ -118,6 +129,8 @@ def match_instance(
         matched_findings=len(used_findings),
         gold_by_category=gold_by_category,
         matched_by_category=matched_by_category,
+        suggestion_total=suggestion_total,
+        suggestion_matched=suggestion_matched,
         unmatched_gold=unmatched_gold,
         unmatched_findings=unmatched_findings,
     )
@@ -160,6 +173,10 @@ class Summary:
     defect_total: int = 0
     defect_recall: float = 0.0
     defect_ci: tuple[float, float] = (0.0, 1.0)
+    suggestion_matched: int = 0
+    suggestion_total: int = 0
+    suggestion_recall: float = 0.0
+    suggestion_ci: tuple[float, float] = (0.0, 1.0)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -185,6 +202,10 @@ class Summary:
             "defect_total": self.defect_total,
             "defect_recall": round(self.defect_recall, 4),
             "defect_ci": [round(x, 4) for x in self.defect_ci],
+            "suggestion_matched": self.suggestion_matched,
+            "suggestion_total": self.suggestion_total,
+            "suggestion_recall": round(self.suggestion_recall, 4),
+            "suggestion_ci": [round(x, 4) for x in self.suggestion_ci],
         }
 
 
@@ -235,6 +256,10 @@ def summarize(results: Iterable[InstanceResult]) -> Summary:
     )
     defect_recall = defect_matched / defect_total if defect_total else 0.0
 
+    suggestion_total = sum(r.suggestion_total for r in bug)
+    suggestion_matched = sum(r.suggestion_matched for r in bug)
+    suggestion_recall = suggestion_matched / suggestion_total if suggestion_total else 0.0
+
     return Summary(
         instances=len(results),
         bug_instances=len(bug),
@@ -258,4 +283,8 @@ def summarize(results: Iterable[InstanceResult]) -> Summary:
         defect_total=defect_total,
         defect_recall=defect_recall,
         defect_ci=wilson_interval(defect_matched, defect_total),
+        suggestion_matched=suggestion_matched,
+        suggestion_total=suggestion_total,
+        suggestion_recall=suggestion_recall,
+        suggestion_ci=wilson_interval(suggestion_matched, suggestion_total),
     )

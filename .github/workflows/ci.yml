@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Tests (offline: no network, no keys)
+        run: uv run pytest tests/ -q --cov=src --cov-report=term-missing --cov-fail-under=70
+
+      - name: Offline demo smoke test
+        run: >
+          uv run python -m src.main --offline --fixture-dir fixtures/pr-102
+          --auto-fix --json-out /tmp/demo-summary.json
+          https://github.com/acme/demo/pull/102

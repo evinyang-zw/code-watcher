@@ -10,14 +10,14 @@ class EvaluationRunner:
     """Runs validation checks against patched code."""
 
     def __init__(self, repo_path: str | None = None):
-        self._temp_dir = None
+        self._temp_dir: str | None = None
         if repo_path:
             self.repo_path = Path(repo_path)
         else:
             self._temp_dir = tempfile.mkdtemp(prefix="code_watcher_")
             self.repo_path = Path(self._temp_dir)
 
-    async def close(self):
+    async def close(self) -> None:
         """Clean up temporary directory."""
         if self._temp_dir and Path(self._temp_dir).exists():
             shutil.rmtree(self._temp_dir, ignore_errors=True)
@@ -27,7 +27,10 @@ class EvaluationRunner:
         try:
             result = await asyncio.wait_for(
                 asyncio.create_subprocess_exec(
-                    "python3", "-m", "py_compile", str(self.repo_path / file_path),
+                    "python3",
+                    "-m",
+                    "py_compile",
+                    str(self.repo_path / file_path),
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.PIPE,
                 ),
@@ -35,7 +38,7 @@ class EvaluationRunner:
             )
             await result.wait()
             return result.returncode == 0
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
 
     async def check_syntax_code(self, code: str, filename: str = "check.py") -> bool:
@@ -45,7 +48,10 @@ class EvaluationRunner:
         try:
             result = await asyncio.wait_for(
                 asyncio.create_subprocess_exec(
-                    "python3", "-m", "py_compile", str(tmp),
+                    "python3",
+                    "-m",
+                    "py_compile",
+                    str(tmp),
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.PIPE,
                 ),
@@ -53,7 +59,7 @@ class EvaluationRunner:
             )
             await result.wait()
             return result.returncode == 0
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
 
     async def check_lint(self, file_path: str) -> bool:
@@ -61,7 +67,9 @@ class EvaluationRunner:
         try:
             result = await asyncio.wait_for(
                 asyncio.create_subprocess_exec(
-                    "ruff", "check", str(self.repo_path / file_path),
+                    "ruff",
+                    "check",
+                    str(self.repo_path / file_path),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 ),
@@ -69,7 +77,7 @@ class EvaluationRunner:
             )
             stdout, _ = await result.communicate()
             return result.returncode == 0
-        except (asyncio.TimeoutError, FileNotFoundError):
+        except (TimeoutError, FileNotFoundError):
             return True
 
     async def check_lint_code(self, code: str, filename: str = "check.py") -> bool:
@@ -79,7 +87,9 @@ class EvaluationRunner:
         try:
             result = await asyncio.wait_for(
                 asyncio.create_subprocess_exec(
-                    "ruff", "check", str(tmp),
+                    "ruff",
+                    "check",
+                    str(tmp),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 ),
@@ -87,7 +97,7 @@ class EvaluationRunner:
             )
             stdout, _ = await result.communicate()
             return result.returncode == 0
-        except (asyncio.TimeoutError, FileNotFoundError):
+        except (TimeoutError, FileNotFoundError):
             return True
 
     async def run_tests(self, test_path: str | None = None) -> bool | None:
@@ -109,5 +119,5 @@ class EvaluationRunner:
             if b"no tests ran" in stdout:
                 return None
             return result.returncode == 0
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None

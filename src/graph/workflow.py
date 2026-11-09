@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from src.graph.edges import (
     needs_human_review,
+    route_after_cache,
     should_auto_fix,
     should_continue_to_segment,
     should_re_review,
@@ -60,13 +63,21 @@ def build_review_graph() -> StateGraph:
     graph.add_edge("parse_diff", "segment_code")
     graph.add_edge("segment_code", "cache_check")
 
-    # --- Segment review loop ---
-    graph.add_edge("cache_check", "review_segment")
+    # --- Segment review loop (cache-aware for every segment) ---
+    graph.add_conditional_edges(
+        "cache_check",
+        route_after_cache,
+        {
+            "cache_hit": "cache_check",
+            "review_segment": "review_segment",
+            "aggregate": "aggregate",
+        },
+    )
     graph.add_conditional_edges(
         "review_segment",
         should_continue_to_segment,
         {
-            "continue": "review_segment",
+            "continue": "cache_check",
             "aggregate": "aggregate",
         },
     )
@@ -99,8 +110,9 @@ def build_review_graph() -> StateGraph:
         "auto_fix",
         needs_human_review,
         {
+            # Low-confidence fixes are rolled back before the human gate.
             "human_review": "rollback",
-            "re_review": "review_segment",
+            "post": "post_comments",
         },
     )
 
@@ -114,8 +126,13 @@ def build_review_graph() -> StateGraph:
     return graph
 
 
-def compile_workflow(checkpointer=None):
-    """Compile the review workflow with optional checkpointing."""
+def compile_workflow(checkpointer: Any | None = None) -> Any:
+    """Compile the review workflow.
+
+    Pass an explicit checkpointer (``MemorySaver`` in tests, an async SQLite
+    saver for cross-process resume via ``--persist``); otherwise the run keeps
+    its state in memory.
+    """
     graph = build_review_graph()
     if checkpointer is None:
         checkpointer = MemorySaver()

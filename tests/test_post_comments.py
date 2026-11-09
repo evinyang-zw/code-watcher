@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.graph.nodes.post_comments import (
     _format_inline_comments,
@@ -21,8 +22,16 @@ def test_format_review_body_empty():
 
 def test_format_review_body_with_findings():
     findings = [
-        ReviewFinding(file_path="a.py", line=1, severity="critical", dimension="security", message="SQL injection"),
-        ReviewFinding(file_path="a.py", line=5, severity="warning", dimension="style", message="Use f-string"),
+        ReviewFinding(
+            file_path="a.py",
+            line=1,
+            severity="critical",
+            dimension="security",
+            message="SQL injection",
+        ),
+        ReviewFinding(
+            file_path="a.py", line=5, severity="warning", dimension="style", message="Use f-string"
+        ),
     ]
     state = create_review_state(all_findings=findings, overall_confidence=0.85)
     body = _format_review_body(state)
@@ -33,8 +42,16 @@ def test_format_review_body_with_findings():
 
 def test_format_inline_comments():
     findings = [
-        ReviewFinding(file_path="a.py", line=1, severity="critical", dimension="security", message="SQL injection"),
-        ReviewFinding(file_path="a.py", line=5, severity="nit", dimension="style", message="Minor style"),
+        ReviewFinding(
+            file_path="a.py",
+            line=1,
+            severity="critical",
+            dimension="security",
+            message="SQL injection",
+        ),
+        ReviewFinding(
+            file_path="a.py", line=5, severity="nit", dimension="style", message="Minor style"
+        ),
     ]
     state = create_review_state(all_findings=findings)
     comments = _format_inline_comments(state)
@@ -50,7 +67,9 @@ async def test_post_comments_node():
         repo="repo",
         pr_number=1,
         all_findings=[
-            ReviewFinding(file_path="a.py", line=1, severity="warning", dimension="style", message="test"),
+            ReviewFinding(
+                file_path="a.py", line=1, severity="warning", dimension="style", message="test"
+            ),
         ],
     )
 
@@ -58,7 +77,7 @@ async def test_post_comments_node():
     mock_client.post_review = AsyncMock()
     mock_client.close = AsyncMock()
 
-    with patch("src.graph.nodes.post_comments.GitHubClient", return_value=mock_client):
+    with patch("src.graph.nodes.post_comments.get_github_client", return_value=mock_client):
         result = await post_comments_node(state)
 
     assert result["phase"] == "done"

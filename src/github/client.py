@@ -25,7 +25,7 @@ class GitHubClient:
         }
         self.client = httpx.AsyncClient(headers=self.headers, timeout=30.0)
 
-    async def close(self):
+    async def close(self) -> None:
         await self.client.aclose()
 
     async def get_pr(self, owner: str, repo: str, number: int) -> dict:
@@ -73,9 +73,7 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
-    async def get_file_content(
-        self, owner: str, repo: str, path: str, ref: str
-    ) -> str:
+    async def get_file_content(self, owner: str, repo: str, path: str, ref: str) -> str:
         resp = await self.client.get(
             f"{self.BASE}/repos/{owner}/{repo}/contents/{path}",
             params={"ref": ref},
@@ -89,7 +87,9 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
-    async def create_blob(self, owner: str, repo: str, content: str, encoding: str = "utf-8") -> dict:
+    async def create_blob(
+        self, owner: str, repo: str, content: str, encoding: str = "utf-8"
+    ) -> dict:
         resp = await self.client.post(
             f"{self.BASE}/repos/{owner}/{repo}/git/blobs",
             json={"content": content, "encoding": encoding},

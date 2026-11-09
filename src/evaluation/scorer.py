@@ -86,7 +86,5 @@ def evaluate_fix(
         quality_delta=quality_delta,
     )
 
-    evaluation.confidence_score = compute_confidence(
-        evaluation, patch.finding.severity
-    )
+    evaluation.confidence_score = compute_confidence(evaluation, patch.finding.severity)
     return evaluation

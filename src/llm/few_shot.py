@@ -3,9 +3,9 @@ from __future__ import annotations
 FEW_SHOT_EXAMPLES = {
     "python": [
         {
-            "code": '''def get_user(id):
+            "code": """def get_user(id):
     query = f"SELECT * FROM users WHERE id = {id}"
-    return db.execute(query)''',
+    return db.execute(query)""",
             "findings": [
                 {
                     "severity": "critical",
@@ -65,6 +65,7 @@ def get_few_shot_prompt(language: str) -> str:
     return "\n".join(lines)
 
 
-def json_dumps(obj) -> str:
+def json_dumps(obj: object) -> str:
     import json
+
     return json.dumps(obj, indent=2, ensure_ascii=False)

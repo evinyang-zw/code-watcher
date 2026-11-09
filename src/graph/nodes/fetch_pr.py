@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from src.github.client import GitHubClient
+from src.github.factory import get_github_client
 from src.graph.state import ReviewState
 
 
@@ -21,7 +21,7 @@ async def fetch_pr_node(state: ReviewState) -> dict:
     except Exception as e:
         return {"error": str(e), "phase": "fetch"}
 
-    github = GitHubClient()
+    github = get_github_client()
     try:
         pr_metadata = await github.get_pr(owner, repo, pr_number)
         raw_diff = await github.get_pr_diff(owner, repo, pr_number)

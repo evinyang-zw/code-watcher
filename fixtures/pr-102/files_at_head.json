@@ -1,0 +1,3 @@
+{
+  "src/calculator.py": "def divide(a, b):\n    if b == 0:\n        return 0\n    return a / b\n\n\ndef read_lines(path):\n    f = open(path)\n    lines = f.readlines()\n    return lines\n"
+}

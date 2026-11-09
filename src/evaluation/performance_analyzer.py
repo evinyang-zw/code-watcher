@@ -51,13 +51,15 @@ def analyze_code_detailed(code: str) -> list[dict]:
     for name, config in PERFORMANCE_ISSUES.items():
         matches = list(re.finditer(config["pattern"], code, re.MULTILINE))
         for match in matches:
-            line_num = code[:match.start()].count("\n") + 1
-            findings.append({
-                "rule": name,
-                "description": config["description"],
-                "severity": config["severity"],
-                "line": line_num,
-            })
+            line_num = code[: match.start()].count("\n") + 1
+            findings.append(
+                {
+                    "rule": name,
+                    "description": config["description"],
+                    "severity": config["severity"],
+                    "line": line_num,
+                }
+            )
     return findings
 
 

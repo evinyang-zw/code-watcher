@@ -1,0 +1,9 @@
+{
+  "number": 102,
+  "title": "refactor(calculator): simplify division and file reading",
+  "state": "open",
+  "user": {"login": "demo-user"},
+  "head": {"sha": "fixture-head-sha-0002", "ref": "feature/calc-refactor"},
+  "base": {"sha": "fixture-base-sha-0000", "ref": "main"},
+  "html_url": "https://github.com/acme/demo/pull/102"
+}

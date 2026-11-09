@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.github.client import GitHubClient
+from src.github.factory import get_github_client
 from src.graph.state import ReviewState
 
 
@@ -51,11 +51,13 @@ def _format_inline_comments(state: ReviewState) -> list[dict]:
     comments = []
     for finding in state["all_findings"]:
         if finding.severity in ("critical", "warning"):
-            comments.append({
-                "path": finding.file_path,
-                "line": finding.line,
-                "body": f"[{finding.severity.upper()}] {finding.message}",
-            })
+            comments.append(
+                {
+                    "path": finding.file_path,
+                    "line": finding.line,
+                    "body": f"[{finding.severity.upper()}] {finding.message}",
+                }
+            )
     return comments
 
 
@@ -64,8 +66,8 @@ async def post_comments_node(state: ReviewState) -> dict:
     body = _format_review_body(state)
     comments = _format_inline_comments(state)
 
-    github = GitHubClient()
     try:
+        github = get_github_client()
         await github.post_review(
             state["owner"],
             state["repo"],
@@ -74,10 +76,12 @@ async def post_comments_node(state: ReviewState) -> dict:
             comments=comments,
             event="COMMENT",
         )
-    except Exception:
-        # If posting fails, we still complete the workflow
-        pass
+    except Exception as exc:  # posting is best-effort: review != publish
+        import logging
+
+        logging.getLogger(__name__).warning("Could not post review comments: %s", exc)
     finally:
-        await github.close()
+        if "github" in locals():
+            await github.close()
 
     return {"phase": "done"}

@@ -67,10 +67,17 @@ async def self_evaluate_node(state: ReviewState) -> dict:
         )
 
         try:
-            response = await provider.chat([
-                SystemMessage(content="Assess the fix quality. Return a confidence score 0.0-1.0 and brief notes."),
-                HumanMessage(content=llm_prompt),
-            ])
+            response = await provider.chat(
+                [
+                    SystemMessage(
+                        content=(
+                            "Assess the fix quality. Return a confidence score "
+                            "0.0-1.0 and brief notes."
+                        )
+                    ),
+                    HumanMessage(content=llm_prompt),
+                ]
+            )
             # Parse confidence: look for "confidence: X.X" pattern specifically
             confidence_match = re.search(r"confidence[:\s]+(\d+\.\d+)", response, re.IGNORECASE)
             if not confidence_match:
@@ -86,9 +93,7 @@ async def self_evaluate_node(state: ReviewState) -> dict:
         )
         evaluation_results.append(evaluation)
 
-    approved = [
-        e.patch for e in evaluation_results if e.confidence_score >= 0.7
-    ]
+    approved = [e.patch for e in evaluation_results if e.confidence_score >= 0.7]
 
     return {
         "evaluation_results": evaluation_results,

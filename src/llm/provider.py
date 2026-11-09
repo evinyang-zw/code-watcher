@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from abc import ABC, abstractmethod
+from typing import Any, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
@@ -27,16 +28,31 @@ class LLMProvider(ABC):
 
 
 class OpenAIProvider(LLMProvider):
-    """OpenAI-compatible LLM provider."""
+    """OpenAI-compatible LLM provider.
 
-    def __init__(self, model: str | None = None, api_key: str | None = None):
+    Works with any OpenAI-compatible endpoint (DeepSeek, MiMo, local vLLM, ...)
+    by setting ``LLM_BASE_URL``.
+    """
+
+    def __init__(
+        self,
+        model: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ):
         from openai import AsyncOpenAI
 
-        self.model = model or os.environ.get("LLM_MODEL", "gpt-4o")
-        self.client = AsyncOpenAI(api_key=api_key or os.environ.get("OPENAI_API_KEY"))
+        self.model = (
+            model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-4o"
+        )
+        self.base_url = base_url or os.environ.get("LLM_BASE_URL") or None
+        self.client = AsyncOpenAI(
+            api_key=api_key or os.environ.get("OPENAI_API_KEY"),
+            base_url=self.base_url,
+        )
 
     async def chat(self, messages: list[BaseMessage]) -> str:
-        formatted = []
+        formatted: list[dict[str, Any]] = []
         for msg in messages:
             if isinstance(msg, SystemMessage):
                 formatted.append({"role": "system", "content": msg.content})
@@ -47,7 +63,7 @@ class OpenAIProvider(LLMProvider):
 
         resp = await self.client.chat.completions.create(
             model=self.model,
-            messages=formatted,
+            messages=cast(Any, formatted),
             temperature=0.1,
         )
         return resp.choices[0].message.content or ""
@@ -64,10 +80,10 @@ class AnthropicProvider(LLMProvider):
 
     async def chat(self, messages: list[BaseMessage]) -> str:
         system = ""
-        formatted = []
+        formatted: list[dict[str, Any]] = []
         for msg in messages:
             if isinstance(msg, SystemMessage):
-                system = msg.content
+                system = str(msg.content)
             elif isinstance(msg, HumanMessage):
                 formatted.append({"role": "user", "content": msg.content})
             elif isinstance(msg, AIMessage):
@@ -77,14 +93,80 @@ class AnthropicProvider(LLMProvider):
             model=self.model,
             max_tokens=4096,
             system=system,
-            messages=formatted,
+            messages=cast(Any, formatted),
         )
-        return resp.content[0].text
+        text_parts = [block.text for block in resp.content if hasattr(block, "text")]
+        return "".join(text_parts)
+
+
+class MockLLMProvider(LLMProvider):
+    """Deterministic provider used by the offline demo and the test suite.
+
+    Responses come from a JSON fixture::
+
+        {
+          "review":  {"<file path>": [ {...finding...} ], "*": [ ... ]},
+          "fix":     "--- a/... +++ b/...",
+          "self_evaluate": "confidence: 0.82 ...",
+          "default": "..."
+        }
+
+    The prompt is classified by its system instructions, so the fixture does
+    not depend on prompt wording beyond the three stable categories.
+    """
+
+    def __init__(self, fixture_path: str | None = None):
+        self.fixture_path = (
+            fixture_path or os.environ.get("MOCK_LLM_FIXTURE") or "fixtures/pr-101/mock_llm.json"
+        )
+        self._data: dict | None = None
+        self.calls: list[str] = []
+
+    def _load(self) -> dict:
+        if self._data is None:
+            with open(self.fixture_path, encoding="utf-8") as fh:
+                self._data = json.load(fh)
+        return self._data
+
+    @staticmethod
+    def _file_path_from_prompt(text: str) -> str | None:
+        marker = "File: "
+        idx = text.find(marker)
+        if idx == -1:
+            return None
+        rest = text[idx + len(marker) :]
+        return rest.split("\n", 1)[0].strip()
+
+    async def chat(self, messages: list[BaseMessage]) -> str:
+        joined = "\n".join(str(m.content) for m in messages)
+        lowered = joined.lower()
+        data = self._load()
+
+        if "expert code reviewer" in lowered:
+            reviews = data.get("review", {})
+            path = self._file_path_from_prompt(joined) or ""
+            findings = reviews.get(path, reviews.get("*", []))
+            self.calls.append(f"review:{path}")
+            return json.dumps(findings, ensure_ascii=False)
+        if "unified diff patch" in lowered:
+            self.calls.append("fix")
+            return str(data.get("fix", ""))
+        if "assess the fix quality" in lowered:
+            self.calls.append("self_evaluate")
+            return str(data.get("self_evaluate", "confidence: 0.7"))
+        self.calls.append("default")
+        return str(data.get("default", ""))
 
 
 def create_llm_provider(provider: str | None = None) -> LLMProvider:
-    """Factory function to create the appropriate LLM provider."""
-    provider_name = provider or os.environ.get("LLM_PROVIDER", "openai")
+    """Factory function to create the appropriate LLM provider.
+
+    Supported values: ``openai`` (default), ``anthropic``, ``mock``.
+    Any other value is treated as an OpenAI-compatible endpoint.
+    """
+    provider_name = (provider or os.environ.get("LLM_PROVIDER", "openai")).strip().lower()
     if provider_name == "anthropic":
         return AnthropicProvider()
+    if provider_name == "mock":
+        return MockLLMProvider()
     return OpenAIProvider()

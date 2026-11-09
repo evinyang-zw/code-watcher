@@ -1,0 +1,9 @@
+{
+  "number": 101,
+  "title": "feat(calculator): guard division by zero and add config loader",
+  "state": "open",
+  "user": {"login": "demo-user"},
+  "head": {"sha": "fixture-head-sha-0001", "ref": "feature/calc-guard"},
+  "base": {"sha": "fixture-base-sha-0000", "ref": "main"},
+  "html_url": "https://github.com/acme/demo/pull/101"
+}

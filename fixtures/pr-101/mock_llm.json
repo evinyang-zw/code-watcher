@@ -1,0 +1,32 @@
+{
+  "review": {
+    "src/calculator.py": [
+      {
+        "severity": "warning",
+        "dimension": "correctness",
+        "line": 3,
+        "message": "Returning 0 for division by zero silently produces a wrong result; raise ZeroDivisionError or return None and document it.",
+        "suggested_fix": "raise ZeroDivisionError(\"cannot divide by zero\")"
+      },
+      {
+        "severity": "warning",
+        "dimension": "performance",
+        "line": 8,
+        "message": "File handle is never closed; use a context manager to avoid leaking descriptors.",
+        "suggested_fix": "with open(path) as f:\n    return f.readlines()"
+      }
+    ],
+    "src/config.py": [
+      {
+        "severity": "critical",
+        "dimension": "security",
+        "line": 3,
+        "message": "Hard-coded database password committed to the repository; load secrets from the environment instead.",
+        "suggested_fix": "DB_PASSWORD = os.environ[\"DB_PASSWORD\"]"
+      }
+    ]
+  },
+  "fix": "--- a/src/calculator.py\n+++ b/src/calculator.py\n@@ -1,3 +1,4 @@\n def divide(a, b):\n     if b == 0:\n-        return 0\n+        raise ZeroDivisionError(\"cannot divide by zero\")\n     return a / b\n",
+  "self_evaluate": "confidence: 0.82\nnotes: The patch addresses the reported issue with a minimal change and does not touch unrelated lines.",
+  "default": "No response configured for this prompt."
+}

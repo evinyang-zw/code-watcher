@@ -48,7 +48,8 @@ async def _generate_patch(finding: ReviewFinding) -> FixPatch | None:
 async def suggest_fixes_node(state: ReviewState) -> dict:
     """Generate fix patches for findings that have suggested_fix."""
     fixable = [
-        s for s in state["suggestions"]
+        s
+        for s in state["suggestions"]
         if s.severity in ("warning", "suggestion", "nit") and s.suggested_fix is not None
     ]
 

@@ -49,11 +49,13 @@ def scan_code_detailed(code: str) -> list[dict]:
     for name, config in SECURITY_PATTERNS.items():
         matches = list(re.finditer(config["pattern"], code))
         for match in matches:
-            line_num = code[:match.start()].count("\n") + 1
-            findings.append({
-                "rule": name,
-                "description": config["description"],
-                "line": line_num,
-                "match": match.group(),
-            })
+            line_num = code[: match.start()].count("\n") + 1
+            findings.append(
+                {
+                    "rule": name,
+                    "description": config["description"],
+                    "line": line_num,
+                    "match": match.group(),
+                }
+            )
     return findings

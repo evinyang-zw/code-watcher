@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from src.schema.types import CodeSegment
 
@@ -44,10 +45,10 @@ def detect_language(file_path: str) -> str:
     return "unknown"
 
 
-def parse_unified_diff(raw_diff: str) -> list[dict]:
+def parse_unified_diff(raw_diff: str) -> list[dict[str, Any]]:
     """Parse raw unified diff text into per-file dicts."""
-    files = []
-    current_file = None
+    files: list[dict[str, Any]] = []
+    current_file: dict[str, Any] | None = None
 
     for line in raw_diff.splitlines():
         if line.startswith("diff --git"):
@@ -70,10 +71,10 @@ def parse_unified_diff(raw_diff: str) -> list[dict]:
     return files
 
 
-def _parse_hunks(raw_lines: list[str]) -> list[dict]:
+def _parse_hunks(raw_lines: list[str]) -> list[dict[str, Any]]:
     """Parse hunk headers and content from diff raw lines."""
-    hunks = []
-    current_hunk = None
+    hunks: list[dict[str, Any]] = []
+    current_hunk: dict[str, Any] | None = None
 
     for line in raw_lines:
         hunk_match = re.match(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
@@ -94,13 +95,10 @@ def _parse_hunks(raw_lines: list[str]) -> list[dict]:
     return hunks
 
 
-def _hunk_to_segment(
-    hunk: dict, file_path: str, language: str, segment_index: int
-) -> CodeSegment:
+def _hunk_to_segment(hunk: dict, file_path: str, language: str, segment_index: int) -> CodeSegment:
     """Convert a single hunk to a CodeSegment."""
     old_lines = []
     new_lines = []
-    new_line_num = hunk["new_start"]
 
     for line in hunk["lines"]:
         if line.startswith("-"):
@@ -122,12 +120,10 @@ def _hunk_to_segment(
     )
 
 
-def extract_segments(
-    raw_diff: str, max_lines_per_segment: int = 200
-) -> list[CodeSegment]:
+def extract_segments(raw_diff: str, max_lines_per_segment: int = 200) -> list[CodeSegment]:
     """Parse unified diff and extract CodeSegments."""
     files = parse_unified_diff(raw_diff)
-    segments = []
+    segments: list[CodeSegment] = []
     idx = 0
 
     for file_info in files:
@@ -151,7 +147,7 @@ def extract_segments(
 
 
 def _split_large_hunk(
-    hunk: dict,
+    hunk: dict[str, Any],
     file_path: str,
     language: str,
     start_idx: int,
@@ -187,7 +183,7 @@ def _split_large_hunk(
                 new_lines.append(line[1:] if line.startswith(" ") else line)
 
         new_start = hunk["new_start"] + sum(
-            1 for l in lines[:chunk_start] if l.startswith("+") or l.startswith(" ")
+            1 for ln in lines[:chunk_start] if ln.startswith("+") or ln.startswith(" ")
         )
 
         segments.append(

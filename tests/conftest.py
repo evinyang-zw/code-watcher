@@ -42,7 +42,11 @@ def sample_segments() -> list[CodeSegment]:
             hunk_start=1,
             hunk_end=7,
             old_content='import os\n\ndef hello():\n    print("hello")\n    return True',
-            new_content='import os\n\ndef hello():\n    name = os.environ.get("NAME", "world")\n    print(f"hello {name}")\n    return True',
+            new_content=(
+                "import os\n\ndef hello():\n"
+                '    name = os.environ.get("NAME", "world")\n'
+                '    print(f"hello {name}")\n    return True'
+            ),
             language="python",
             segment_index=0,
         )

@@ -1,0 +1,4 @@
+{
+  "src/calculator.py": "def divide(a, b):\n    if b == 0:\n        return 0\n    return a / b\n\n\ndef read_lines(path):\n    f = open(path)\n    lines = f.readlines()\n    return lines\n\n\ndef safe_divide(a, b):\n    return divide(a, b)\n",
+  "src/config.py": "\"\"\"Application config.\"\"\"\n\nDB_PASSWORD = \"hunter2\"\n\n\ndef get_password() -> str:\n    return DB_PASSWORD\n"
+}

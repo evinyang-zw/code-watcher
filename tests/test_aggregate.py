@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.graph.nodes.aggregate import _deduplicate_findings, aggregate_node
 from src.graph.nodes.suggest_fixes import suggest_fixes_node

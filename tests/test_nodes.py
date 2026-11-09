@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.graph.nodes.fetch_pr import _parse_pr_url
 from src.graph.nodes.parse_diff import parse_diff_node
@@ -42,15 +43,18 @@ async def test_segment_code_node(sample_diff):
 @pytest.mark.asyncio
 async def test_fetch_pr_node_with_mock(sample_review_state):
     mock_pr = {"number": 1, "title": "Test PR", "head": {"sha": "abc123"}}
-    mock_diff = "diff --git a/test.py b/test.py\n--- a/test.py\n+++ b/test.py\n@@ -1 +1 @@\n-old\n+new"
+    mock_diff = (
+        "diff --git a/test.py b/test.py\n--- a/test.py\n+++ b/test.py\n@@ -1 +1 @@\n-old\n+new"
+    )
 
     mock_client = AsyncMock()
     mock_client.get_pr = AsyncMock(return_value=mock_pr)
     mock_client.get_pr_diff = AsyncMock(return_value=mock_diff)
     mock_client.close = AsyncMock()
 
-    with patch("src.graph.nodes.fetch_pr.GitHubClient", return_value=mock_client):
+    with patch("src.graph.nodes.fetch_pr.get_github_client", return_value=mock_client):
         from src.graph.nodes.fetch_pr import fetch_pr_node
+
         result = await fetch_pr_node(sample_review_state)
 
     assert result["owner"] == "test"

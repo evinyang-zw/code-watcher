@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import operator
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Any, TypedDict, cast
 
 from src.schema.types import (
     CodeSegment,
@@ -43,6 +43,8 @@ class ReviewState(TypedDict, total=False):
     all_findings: list[ReviewFinding]
 
     # --- Fixes ---
+    fix_attempts: int
+    pre_fix_sha: str | None
     suggestions: list[ReviewFinding]
     generated_fixes: list[FixPatch]
     evaluation_results: list[EvaluationResult]
@@ -71,7 +73,8 @@ _DEFAULTS = {
     "repo": "",
     "pr_number": 0,
     "auto_fix_enabled": False,
-    "dry_run": False,
+    # Dry-run is the safe default: auto-fix must be explicitly applied.
+    "dry_run": True,
     "review_dimensions": ["correctness", "style", "security", "performance"],
     "messages": [],
     "pr_metadata": {},
@@ -82,6 +85,8 @@ _DEFAULTS = {
     "segment_reviews": [],
     "file_groups": {},
     "all_findings": [],
+    "fix_attempts": 0,
+    "pre_fix_sha": None,
     "suggestions": [],
     "generated_fixes": [],
     "evaluation_results": [],
@@ -97,6 +102,6 @@ _DEFAULTS = {
 }
 
 
-def create_review_state(**kwargs) -> ReviewState:
+def create_review_state(**kwargs: Any) -> ReviewState:
     """Create a ReviewState with defaults, allowing selective overrides."""
-    return {**copy.deepcopy(_DEFAULTS), **kwargs}  # type: ignore[return-value]
+    return cast(ReviewState, {**copy.deepcopy(_DEFAULTS), **kwargs})

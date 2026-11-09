@@ -31,7 +31,7 @@ class ReviewCache:
             return self._cache[key]
         return None
 
-    def put(self, segment: CodeSegment, result: ReviewResult):
+    def put(self, segment: CodeSegment, result: ReviewResult) -> None:
         key = self._content_hash(segment)
         if key in self._cache:
             # Update existing entry — O(1)
@@ -47,7 +47,7 @@ class ReviewCache:
     def size(self) -> int:
         return len(self._cache)
 
-    def clear(self):
+    def clear(self) -> None:
         self._cache.clear()
 
 

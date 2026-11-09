@@ -30,6 +30,10 @@ build/
 .env
 .env.local
 
+# Evaluation artifacts (reports are committed explicitly)
+eval/results/
+eval/report-smoke.md
+
 # Testing / Coverage
 .pytest_cache/
 .coverage

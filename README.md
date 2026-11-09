@@ -152,6 +152,19 @@ CI（GitHub Actions）跑 `uv sync --frozen` → ruff → mypy → pytest（覆�
 
 ---
 
+## 评测（自建 review benchmark）
+
+```bash
+make eval-smoke      # 离线冒烟：mock LLM 跑通 评测 → 匹配 → 报告 全链路
+make eval-collect    # 采集（需要只读 GITHUB_TOKEN）
+make eval            # 真实评测（需要 LLM provider）
+make eval-report     # 渲染 eval/report.md
+```
+
+协议：让 Agent 审查真实 PR diff，把 finding 与**人类 reviewer 的行内评论**比对，
+报 `precision / recall / F1 / false-positive rate`（Wilson 95% CI）与失败分类。
+匹配规则、数据筛选与已知偏差见 `eval/README.md`；逐次运行产物在 `eval/results/`。
+
 ## 目录结构
 
 ```
@@ -173,8 +186,9 @@ tests/                # 84 tests（图级 e2e / HTTP 契约 / 单元 / CLI）
 
 ## 已知限制（写清楚比藏起来有用）
 
-1. **没有 benchmark**：审查质量目前没有量化结论（没有金标集、没有 precision/recall）。
-   自评估只是修复后的启发式自检。评测是下一个里程碑（`eval/`）。
+1. **评测是自建的、规模有限的**：`eval/` 里有一个自建 code-review 评测协议
+   （真实 PR + 人工行内评论 + precision/recall/FPR + Wilson CI），口径与已知偏差写在
+   `eval/README.md`。它不是 SWE-bench，也不与任何公开榜单可比。
 2. **不是 SWE-bench 实现**：本项目只 review diff，不做 repo 探索与 issue→patch 修复，
    没有 FAIL_TO_PASS/PASS_TO_PASS 语料。
 3. **修复后重审未实现**：`self_evaluate` 通过后直接发布，不会对 patched 代码再跑一轮 review。

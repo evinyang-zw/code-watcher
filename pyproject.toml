@@ -45,10 +45,12 @@ select = ["E", "F", "I", "N", "W", "UP"]
 # Prompt templates are long single-line literals on purpose.
 "src/llm/prompts.py" = ["E501"]
 "src/llm/few_shot.py" = ["E501"]
+# Markdown table rows are long by nature.
+"eval/report.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
-files = ["src"]
+files = ["src", "eval"]
 disallow_untyped_defs = true
 ignore_missing_imports = true
 warn_unused_ignores = true

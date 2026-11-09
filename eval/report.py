@@ -57,6 +57,10 @@ def render(summary_path: Path, results_path: Path | None) -> str:
         f"| {summary['matched_gold']}/{summary['gold_total']} |",
         f"| Precision (findings matching a comment) | {_pct(summary['precision'])} "
         f"| {_ci(summary['precision_ci'])} | {summary['matched_findings']}/{summary['findings_total']} |",
+        f"| Recall on defect-like comments (bug/security/performance) "
+        f"| {_pct(summary.get('defect_recall', 0.0))} "
+        f"| {_ci(summary.get('defect_ci', [0, 1]))} "
+        f"| {summary.get('defect_matched', 0)}/{summary.get('defect_total', 0)} |",
         f"| F1 | {summary['f1']:.3f} | — | — |",
         f"| False-positive rate (clean PRs) | {_pct(summary['false_positive_rate'])} "
         f"| {_ci(summary['fpr_ci'])} | {summary['clean_with_findings']}/{summary['clean_instances']} |",

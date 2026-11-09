@@ -156,6 +156,10 @@ class Summary:
     fpr_ci: tuple[float, float]
     recall_by_category: dict[str, dict[str, float]]
     missed_by_category: dict[str, int]
+    defect_matched: int = 0
+    defect_total: int = 0
+    defect_recall: float = 0.0
+    defect_ci: tuple[float, float] = (0.0, 1.0)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -177,6 +181,10 @@ class Summary:
             "fpr_ci": [round(x, 4) for x in self.fpr_ci],
             "recall_by_category": self.recall_by_category,
             "missed_by_category": self.missed_by_category,
+            "defect_matched": self.defect_matched,
+            "defect_total": self.defect_total,
+            "defect_recall": round(self.defect_recall, 4),
+            "defect_ci": [round(x, 4) for x in self.defect_ci],
         }
 
 
@@ -218,6 +226,15 @@ def summarize(results: Iterable[InstanceResult]) -> Summary:
         for category, total in sorted(category_totals.items())
     }
 
+    defect_categories = {"bug", "security", "performance"}
+    defect_matched = sum(
+        matched for category, matched in category_matched.items() if category in defect_categories
+    )
+    defect_total = sum(
+        total for category, total in category_totals.items() if category in defect_categories
+    )
+    defect_recall = defect_matched / defect_total if defect_total else 0.0
+
     return Summary(
         instances=len(results),
         bug_instances=len(bug),
@@ -237,4 +254,8 @@ def summarize(results: Iterable[InstanceResult]) -> Summary:
         fpr_ci=wilson_interval(clean_with_findings, len(clean)),
         recall_by_category=recall_by_category,
         missed_by_category=missed_by_category,
+        defect_matched=defect_matched,
+        defect_total=defect_total,
+        defect_recall=defect_recall,
+        defect_ci=wilson_interval(defect_matched, defect_total),
     )

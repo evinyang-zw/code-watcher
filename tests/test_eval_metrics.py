@@ -87,6 +87,20 @@ def test_summarize_two_instances():
     assert summary.missed_by_category["style"] == 1
 
 
+def test_defect_recall_uses_category_subset():
+    bug = make_instance(
+        [
+            GoldComment(path="a.py", line=10, body="crash here", category="bug"),
+            GoldComment(path="a.py", line=30, body="rename this", category="style"),
+        ]
+    )
+    result = match_instance(bug, [finding("a.py", 10)])
+    summary = summarize([result])
+    assert summary.defect_total == 1
+    assert summary.defect_matched == 1
+    assert summary.defect_recall == pytest.approx(1.0)
+
+
 def test_clean_pr_with_findings_counts_as_false_positive():
     clean_with_finding = make_instance([], kind="clean")
     result = match_instance(clean_with_finding, [finding("a.py", 1)])

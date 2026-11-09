@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
 
 from eval.schema import GoldComment, Instance
 
@@ -234,6 +235,7 @@ def load(path: Path) -> list[Instance]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Collect a code-review gold set")
     parser.add_argument(
         "--repos",

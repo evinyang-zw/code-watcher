@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from langgraph.checkpoint.memory import MemorySaver
 
 from eval.collect import load
@@ -166,6 +167,7 @@ def run_id_from_env(prefix: str = "run") -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Evaluate Code Watcher on a gold set")
     parser.add_argument("--dataset", default="eval/data/gold_review.jsonl")
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N")

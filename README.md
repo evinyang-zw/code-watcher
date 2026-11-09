@@ -13,7 +13,7 @@ reducer、interrupt/resume、checkpoint），以及一套**离线可复现**的�
 make install
 make demo        # 离线跑一个 fixture PR：3 条 finding，命中 critical 后停在人工审批
 make demo-fix    # 离线跑自动修复 dry-run：自评估通过 → 展示"将要应用"的补丁
-make check       # lint + mypy + 84 个测试 + 覆盖率门禁
+make check       # lint + mypy + 97 个测试 + 覆盖率门禁
 ```
 
 ---
@@ -131,8 +131,8 @@ fixtures/pr-101/
 ## 测试与 CI
 
 ```bash
-make test     # 84 tests, 约 3s，全离线
-make cov      # 覆盖率 74%（CI 门禁 70%）
+make test     # 97 tests, 约 4s，全离线
+make cov      # 覆盖率 72%（CI 门禁 70%）
 make lint     # ruff check + ruff format --check
 make type     # mypy（disallow_untyped_defs）
 make check    # 以上全部
@@ -209,7 +209,7 @@ src/
 ├── cache/            # LRU 缓存（O(1)）
 └── schema/           # Pydantic 数据模型
 fixtures/             # 两个离线 PR（pr-101 带 critical；pr-102 用于 auto-fix 演示）
-tests/                # 84 tests（图级 e2e / HTTP 契约 / 单元 / CLI）
+tests/                # 97 tests（图级 e2e / HTTP 契约 / 单元 / CLI）
 .github/workflows/ci.yml
 ```
 

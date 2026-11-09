@@ -154,16 +154,47 @@ CI（GitHub Actions）跑 `uv sync --frozen` → ruff → mypy → pytest（覆�
 
 ## 评测（自建 review benchmark）
 
-```bash
-make eval-smoke      # 离线冒烟：mock LLM 跑通 评测 → 匹配 → 报告 全链路
-make eval-collect    # 采集（需要只读 GITHUB_TOKEN）
-make eval            # 真实评测（需要 LLM provider）
-make eval-report     # 渲染 eval/report.md
-```
+### 协议（为什么这么评）
 
-协议：让 Agent 审查真实 PR diff，把 finding 与**人类 reviewer 的行内评论**比对，
-报 `precision / recall / F1 / false-positive rate`（Wilson 95% CI）与失败分类。
-匹配规则、数据筛选与已知偏差见 `eval/README.md`；逐次运行产物在 `eval/results/`。
+让 Agent 审查**真实 PR 的 diff**，把它的 finding 与**人类 reviewer 留在同一 PR 上的
+行内评论**比对。这不是 SWE-bench（项目不做 issue→patch 修复，没有 FAIL_TO_PASS/
+PASS_TO_PASS 语料），而是一个自建协议：真实 PR + 真实人工评论 + 固定口径 + 可复现产物。
+
+- **reviewed 组**：30 个已合并 PR，每个有 1–3 条可信行内评论（过滤 bot、回复、非仓库关联用户）；
+- **clean 组**：15 个已合并且被 approve 但没有任何可执行行内评论的 PR，用于测误报；
+- 匹配：同文件且行号差 ≤3 视为命中（贪心一对一）；
+- 指标：precision / recall / F1 / FPR / 每 PR 评论数，比例给 Wilson 95% CI；
+- 产物：`eval/data/gold_review.jsonl`（45 个实例）、`eval/snapshot/`（一次完整运行）与 `eval/report.md`。
+
+### 结果（45 PR = 30 reviewed + 15 clean；DeepSeek-flash，thinking off）
+
+| 指标 | 原始输出 | 发布策略（≥warning、去重、≤5 条/PR） |
+|---|---|---|
+| Recall（人工评论覆盖率） | **52.4%** [37.7, 66.6] | 23.8% [13.5, 38.5] |
+| 其中缺陷类评论（bug/security/perf） | 42.9% (3/7) | 14.3% (1/7) |
+| Precision（与人工评论吻合） | **6.9%** [4.6, 10.2] | 13.7% [7.6, 23.4] |
+| F1 | 0.121 | 0.174 |
+| 干净 PR 误报率 FPR | **93.3%** (14/15) | 73.3% (11/15) |
+| 每 PR 评论数 | 10.7 | 2.4 |
+
+### 三个结论（比数字本身重要）
+
+1. **首版是"高召回、低精度"的**：能覆盖一半的人工评论，但每题吐 10 条评论、
+   干净 PR 上 93% 会误报——直接发布等于评论轰炸，不可用。
+2. **过滤只能换来一半的改善，救不了根因**：加 severity 阈值 + 去重 + 每 PR 上限后，
+   precision 翻倍、评论数降到 1/4，但 recall 腰斩、FPR 仍 73%。放宽到 ≤10 条/PR
+   时 F1 最高（0.181），牺牲的仍是 recall。
+3. **瓶颈在审查环节而不是发布环节**：hunk 级独立审查缺少跨段上下文，导致大量低价值
+   评论。下一版要做的是"文件级上下文 + 置信度校准 + 跨段聚合"，而不是继续调过滤器。
+
+### 已知偏差（读数字前必须知道）
+
+- gold 来自人类评论，混有排序/提问类意见（others 30 条），不是纯缺陷标注；类别由关键词启发式推断；
+- 行号容差 ±3，同一问题换个行号就算漏；未被人工评论覆盖的 finding 不一定是错的（precision 是下界）；
+- 单模型、单次运行、n=45：请用置信区间而不是点估计做比较；有一次实例因超时缺段（报告已标注）；
+- **不要把这些数字与任何公开榜单并列**，也不要把 precision/recall 说成"准确率"。
+
+复现命令：`make eval-collect`（需要只读 GITHUB_TOKEN）→ `make eval`（需要 LLM provider）→ `make eval-guard` → `make eval-report`；一次完整运行约 35 分钟（45 PR，DeepSeek-flash）。
 
 ## 目录结构
 

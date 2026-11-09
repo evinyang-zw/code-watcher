@@ -172,7 +172,7 @@ class MockLLMProvider(LLMProvider):
         return str(data.get("default", ""))
 
 
-_PROVIDERS: dict[tuple[str, str, str, str], LLMProvider] = {}
+_PROVIDERS: dict[tuple[str, str, str, str, str], LLMProvider] = {}
 
 
 def create_llm_provider(provider: str | None = None) -> LLMProvider:

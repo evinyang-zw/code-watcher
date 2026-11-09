@@ -1,0 +1,69 @@
+{
+  "run_id": "real-2026-11-09",
+  "dataset": "eval/data/gold_review.jsonl",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "summary": {
+    "instances": 45,
+    "bug_instances": 30,
+    "clean_instances": 15,
+    "gold_total": 42,
+    "findings_total": 320,
+    "matched_gold": 22,
+    "matched_findings": 22,
+    "clean_with_findings": 14,
+    "findings_per_bug_pr": 10.67,
+    "recall": 0.5238,
+    "recall_ci": [
+      0.3772,
+      0.6664
+    ],
+    "precision": 0.0688,
+    "precision_ci": [
+      0.0458,
+      0.1019
+    ],
+    "f1": 0.1215,
+    "false_positive_rate": 0.9333,
+    "fpr_ci": [
+      0.7018,
+      0.9881
+    ],
+    "recall_by_category": {
+      "bug": {
+        "matched": 3,
+        "total": 7,
+        "recall": 0.4286
+      },
+      "other": {
+        "matched": 17,
+        "total": 30,
+        "recall": 0.5667
+      },
+      "style": {
+        "matched": 2,
+        "total": 5,
+        "recall": 0.4
+      }
+    },
+    "missed_by_category": {
+      "other": 13,
+      "bug": 4,
+      "style": 3
+    },
+    "defect_matched": 3,
+    "defect_total": 7,
+    "defect_recall": 0.4286,
+    "defect_ci": [
+      0.1582,
+      0.7495
+    ],
+    "suggestion_matched": 6,
+    "suggestion_total": 11,
+    "suggestion_recall": 0.5455,
+    "suggestion_ci": [
+      0.2801,
+      0.7873
+    ]
+  }
+}

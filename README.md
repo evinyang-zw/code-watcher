@@ -231,4 +231,4 @@ tests/                # 97 tests（图级 e2e / HTTP 契约 / 单元 / CLI）
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 evinyang-zw

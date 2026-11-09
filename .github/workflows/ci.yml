@@ -31,7 +31,7 @@ jobs:
       - name: Type check
         run: uv run mypy
 
-      - name: Tests (offline: no network, no keys)
+      - name: "Tests (offline: no network, no keys)"
         run: uv run pytest tests/ -q --cov=src --cov-report=term-missing --cov-fail-under=70
 
       - name: Offline demo smoke test

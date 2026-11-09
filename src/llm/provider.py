@@ -172,15 +172,33 @@ class MockLLMProvider(LLMProvider):
         return str(data.get("default", ""))
 
 
-def create_llm_provider(provider: str | None = None) -> LLMProvider:
-    """Factory function to create the appropriate LLM provider.
+_PROVIDERS: dict[tuple[str, str, str, str], LLMProvider] = {}
 
-    Supported values: ``openai`` (default), ``anthropic``, ``mock``.
-    Any other value is treated as an OpenAI-compatible endpoint.
+
+def create_llm_provider(provider: str | None = None) -> LLMProvider:
+    """Factory returning a cached provider per configuration.
+
+    The review loop calls this once per code segment; creating a fresh SDK
+    client каждый call leaks HTTP connections and file descriptors (one PR can
+    have dozens of segments). Providers are stateless, so one per configuration
+    is enough.
     """
     provider_name = (provider or os.environ.get("LLM_PROVIDER", "openai")).strip().lower()
+    key = (
+        provider_name,
+        os.environ.get("LLM_MODEL", ""),
+        os.environ.get("LLM_BASE_URL", ""),
+        os.environ.get("LLM_THINKING", ""),
+        os.environ.get("MOCK_LLM_FIXTURE", ""),
+    )
+    cached = _PROVIDERS.get(key)
+    if cached is not None:
+        return cached
     if provider_name == "anthropic":
-        return AnthropicProvider()
-    if provider_name == "mock":
-        return MockLLMProvider()
-    return OpenAIProvider()
+        created: LLMProvider = AnthropicProvider()
+    elif provider_name == "mock":
+        created = MockLLMProvider()
+    else:
+        created = OpenAIProvider()
+    _PROVIDERS[key] = created
+    return created

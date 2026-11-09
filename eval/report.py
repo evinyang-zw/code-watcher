@@ -49,7 +49,7 @@ def render(
         f"- dataset: `{payload.get('dataset', '')}`",
         f"- provider: `{payload.get('provider', '')}` / model: `{payload.get('model', '') or 'n/a'}`",
         f"- instances: {summary['instances']} "
-        f"({summary['bug_instances']} bug-fix PRs + {summary['clean_instances']} clean PRs)",
+        f"({summary['bug_instances']} reviewed PRs + {summary['clean_instances']} clean PRs)",
         "",
         "## Headline",
         "",
@@ -126,6 +126,13 @@ def render(
             for line in results_path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+        errors = sum(1 for row in rows if row.get("error"))
+        if errors:
+            lines.insert(
+                5,
+                f"- runs with a segment/LLM error: {errors}/{len(rows)} "
+                "(their unfetched segments lower recall; see per-instance table)",
+            )
         lines += [
             "",
             "## Per-instance results",

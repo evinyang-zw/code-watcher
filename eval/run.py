@@ -88,7 +88,9 @@ def _write_fixture(directory: Path, instance: Instance) -> None:
         os.environ["MOCK_LLM_FIXTURE"] = str(directory / "mock_llm.json")
 
 
-async def run_instance(instance: Instance) -> tuple[list[Finding], str | None]:
+async def run_instance(
+    instance: Instance, timeout_s: float = 240.0
+) -> tuple[list[Finding], str | None]:
     """Review one PR instance and return its findings."""
     with tempfile.TemporaryDirectory(prefix="cw-eval-") as tmp:
         fixture_dir = Path(tmp)
@@ -101,13 +103,18 @@ async def run_instance(instance: Instance) -> tuple[list[Finding], str | None]:
         workflow = compile_workflow(MemorySaver())
         config = {
             "configurable": {"thread_id": f"eval-{instance.id}"},
-            "recursion_limit": 50,
+            # Each segment costs ~2 supersteps (cache check + review); large
+            # PRs can have dozens of segments.
+            "recursion_limit": 400,
         }
         error: str | None = None
         try:
-            await workflow.ainvoke(create_review_state(pr_url=instance.pr_url), config)
+            await asyncio.wait_for(
+                workflow.ainvoke(create_review_state(pr_url=instance.pr_url), config),
+                timeout=timeout_s,
+            )
         except Exception as exc:  # network/LLM failure: keep the instance in the report
-            error = str(exc)
+            error = f"{type(exc).__name__}: {exc}"
 
         snapshot = await workflow.aget_state(config)
         values: dict[str, Any] = dict(snapshot.values or {})
@@ -125,32 +132,47 @@ async def run_instance(instance: Instance) -> tuple[list[Finding], str | None]:
 
 
 async def evaluate(
-    dataset: list[Instance], limit: int | None = None, verbose: bool = True
+    dataset: list[Instance],
+    limit: int | None = None,
+    verbose: bool = True,
+    out_path: Path | None = None,
+    skip_ids: set[str] | None = None,
 ) -> tuple[list[InstanceResult], list[dict[str, Any]]]:
     results: list[InstanceResult] = []
     raw: list[dict[str, Any]] = []
     selected = dataset[:limit] if limit else dataset
+    skip_ids = skip_ids or set()
 
     for index, instance in enumerate(selected, start=1):
+        if instance.id in skip_ids:
+            if verbose:
+                print(
+                    f"[{index}/{len(selected)}] {instance.id} skipped (already done)",
+                    file=sys.stderr,
+                )
+            continue
         started = time.monotonic()
         findings, error = await run_instance(instance)
         duration = time.monotonic() - started
         result = match_instance(instance, findings)
         result.error = error
         results.append(result)
-        raw.append(
-            {
-                "instance_id": instance.id,
-                "kind": instance.kind,
-                "repo": instance.repo,
-                "pr": instance.pr_number,
-                "title": instance.title,
-                "duration_s": round(duration, 1),
-                "findings": [finding.to_dict() for finding in findings],
-                "result": result.to_dict(),
-                "error": error,
-            }
-        )
+        row = {
+            "instance_id": instance.id,
+            "kind": instance.kind,
+            "repo": instance.repo,
+            "pr": instance.pr_number,
+            "title": instance.title,
+            "duration_s": round(duration, 1),
+            "findings": [finding.to_dict() for finding in findings],
+            "result": result.to_dict(),
+            "error": error,
+        }
+        raw.append(row)
+        if out_path is not None:  # incremental: a crashed run can be resumed
+            with out_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+                fh.flush()
         if verbose:
             print(
                 f"[{index}/{len(selected)}] {instance.id:<28} "
@@ -176,6 +198,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N")
     parser.add_argument("--out-dir", default="eval/results")
     parser.add_argument("--run-id", default=None)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip instances already present in eval/results/<run_id>.jsonl",
+    )
+    parser.add_argument("--timeout", type=float, default=240.0, help="Per-instance timeout (s)")
     parser.add_argument(
         "--allow-mock",
         action="store_true",
@@ -214,7 +242,43 @@ def main(argv: list[str] | None = None) -> int:
         file=sys.stderr,
     )
 
-    results, raw = asyncio.run(evaluate(dataset, limit=args.limit))
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    partial_path = out_dir / f"{run_id}.jsonl"
+    skip_ids: set[str] = set()
+    if args.resume and partial_path.exists():
+        skip_ids = {
+            json.loads(line)["instance_id"]
+            for line in partial_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        print(f"resuming: {len(skip_ids)} instances already done", file=sys.stderr)
+
+    results, raw = asyncio.run(
+        evaluate(
+            dataset,
+            limit=args.limit,
+            out_path=None if args.resume else partial_path,
+            skip_ids=skip_ids,
+        )
+    )
+    # On resume, merge previously written rows into the final artifacts.
+    if args.resume and partial_path.exists():
+        previous = [
+            json.loads(line)
+            for line in partial_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        merged = {row["instance_id"]: row for row in previous}
+        merged.update({row["instance_id"]: row for row in raw})
+        raw = [merged[key] for key in sorted(merged)]
+        results = []
+        for row in raw:
+            instance = next(i for i in dataset if i.id == row["instance_id"])
+            findings = [Finding(**item) for item in row["findings"]]
+            result = match_instance(instance, findings)
+            result.error = row.get("error")
+            results.append(result)
     summary = summarize(results)
 
     out_dir = Path(args.out_dir)

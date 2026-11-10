@@ -20,7 +20,7 @@ make check       # lint + mypy + 97 个测试 + 覆盖率门禁
 
 ## 工作流
 
-13 个节点、5 组条件边。核心循环与闸门：
+13 个节点、6 组条件边。核心循环与闸门：
 
 ```
 START → fetch_pr → parse_diff → segment_code → cache_check
